@@ -360,6 +360,17 @@ function TopBar() {
               <span>✦</span>
               <span>AI Help</span>
             </button>
+            
+{/* AI LAB */}
+<button
+  onClick={() => navigate("/ai-lab")}
+  className="flex items-center gap-2 rounded-md border border-[#30363d] bg-[#161b22] px-3 py-1.5 text-sm font-medium text-[#f0f6fc] hover:border-[#58a6ff] hover:bg-[#21262d]"
+>
+  <span>⚗</span>
+  <span>AI Lab</span>
+</button>
+
+
 
             <button
               onClick={() => navigate("/resume")}

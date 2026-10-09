@@ -191,25 +191,85 @@ function analyzeStructure(resumeText) {
   }
 }
 
+
 function getRequiredContext(jobText, skill) {
+  const lines = String(jobText)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const aliases = SKILL_GROUPS[skill] || [skill]
+
+  const containsSkill = (text) =>
+    aliases.some((alias) => containsTerm(text, alias))
+
+  const requiredPattern =
+    /\b(required|required qualifications|minimum qualifications|minimum requirements|mandatory|must[- ]have|essential skills|essential qualifications|requirements)\b/i
+
+  const preferredPattern =
+    /\b(preferred|nice[- ]to[- ]have|good to have|optional|bonus skills|desirable)\b/i
+
+  const sectionHeadingPattern =
+    /^(technical skills|skills|qualifications|requirements|what you need|what we're looking for|what we are looking for|minimum qualifications|required qualifications|preferred qualifications|preferred skills|nice to have)\s*:?\s*$/i
+
+  let sectionMode = "unknown"
+
+  for (const line of lines) {
+    const heading = line.replace(/^[-*•\d.)\s]+/, "").trim()
+
+    // Update the active section when a heading is encountered.
+    if (sectionHeadingPattern.test(heading)) {
+      if (preferredPattern.test(heading)) {
+        sectionMode = "preferred"
+      } else if (requiredPattern.test(heading)) {
+        sectionMode = "required"
+      } else {
+        sectionMode = "unknown"
+      }
+
+      continue
+    }
+
+    // A new heading or section can change the context.
+    if (
+      /\b(preferred qualifications|preferred skills|nice to have|what you'll do|responsibilities|job duties|benefits)\b/i.test(line)
+    ) {
+      sectionMode = "preferred"
+    } else if (
+      /\b(required qualifications|minimum requirements|requirements|must-have skills)\b/i.test(line)
+    ) {
+      sectionMode = "required"
+    }
+
+    if (!containsSkill(line)) continue
+
+    // Explicit required language takes priority.
+    if (requiredPattern.test(line)) return true
+
+    // Don't treat preferred-only skills as required.
+    if (preferredPattern.test(line)) continue
+
+    // Skills listed under a required heading inherit that context.
+    if (sectionMode === "required") return true
+  }
+
+  // Handle descriptions written as paragraphs rather than bullet lists.
   const sentences = String(jobText)
     .replace(/\r/g, "\n")
     .split(/[\n.!?;]+/)
     .map((sentence) => sentence.trim())
     .filter(Boolean)
 
-  const matchingSentences = sentences.filter((sentence) =>
-    SKILL_GROUPS[skill] 
-      ? SKILL_GROUPS[skill].some((alias) => containsTerm(sentence, alias))
-      : containsTerm(sentence, skill)
-  )
-
-  return matchingSentences.some((sentence) =>
-    /\b(required|must have|mandatory|minimum qualification|requirement|required qualifications)\b/i.test(
-      sentence
-    )
+  return sentences.some(
+    (sentence) =>
+      containsSkill(sentence) &&
+      requiredPattern.test(sentence) &&
+      !preferredPattern.test(sentence)
   )
 }
+
+
 
 function scoreExperienceEvidence(resumeText) {
   const quantifiedBullets = (resumeText.match(
